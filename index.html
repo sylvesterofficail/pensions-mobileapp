@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FCMB Pensions Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: presenter panel + phone device on a light Living Flow backdrop (desktop); the app fills the screen on phones.
+   Single deliberate light look, taken from the FCMB brand guide. */
+:root{
+  --purple:#5c068c; --obsidian:#2e0b56; --gold:#ffb81c; --white:#ffffff;
+  --surface:#f7f5f9; --line:#e8e1ef; --field:#d9d0e3; --muted:#5f5470; --faint:#8a7f99;
+  --tint:#efe5f6; --jade-t:#d6f9e7; --coral-t:#ffe3ea; --gold-t:#fff1d1; --bezel:#1c1029;
+  --serif:'DM Serif Display', Georgia, 'Times New Roman', serif;
+  --sans:'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --top:56px;
+  color-scheme: light;
+}
+html,body{height:100%}
+body{background:var(--white);color:var(--obsidian);font-family:var(--sans);letter-spacing:-0.015em;overflow:hidden}
+*{box-sizing:border-box}
+button,input,textarea,select{font:inherit;color:inherit;letter-spacing:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--purple);outline-offset:2px}
+.ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ---------- stage ---------- */
+.stage{position:relative;height:100%;display:flex;align-items:center;justify-content:center;gap:56px;padding-block:24px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.stage-bg{position:fixed;inset:0;background:var(--white) url(flow_splash.jpg) center/cover no-repeat;z-index:-1}
+.presenter{max-width:340px;display:flex;flex-direction:column;gap:20px}
+.lockup{display:flex;align-items:center;gap:10px;font-size:20px;color:var(--purple)}
+.lockup img{width:36px;height:36px;border-radius:5px}
+.presenter h2{margin:0;font-family:var(--serif);font-weight:400;font-size:44px;line-height:1.08;letter-spacing:-0.01em;text-wrap:balance}
+.presenter p{margin:0;font-size:15px;line-height:1.55;color:var(--muted)}
+.walk{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;counter-reset:w}
+.walk li{display:flex;gap:12px;align-items:baseline;font-size:14px;line-height:1.45;counter-increment:w}
+.walk li::before{content:counter(w);font-weight:700;color:var(--purple);min-width:14px}
+.pbtns{display:flex;gap:10px;flex-wrap:wrap}
+.device-wrap{position:relative;width:calc(410px * var(--s,1));height:calc(864px * var(--s,1));flex-shrink:0}
+.device{position:absolute;top:0;left:0;width:410px;height:864px;border-radius:56px;background:var(--bezel);padding:10px;transform:scale(var(--s,1));transform-origin:top left;box-shadow:0 30px 80px rgba(46,11,86,.25)}
+.screen{position:relative;width:390px;height:844px;border-radius:46px;overflow:hidden;background:var(--white);isolation:isolate}
+.notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:120px;height:34px;border-radius:20px;background:var(--bezel);z-index:60;pointer-events:none}
+
+@media (max-width:860px){
+  .presenter{display:none}
+}
+@media (max-width:520px){
+  body{overflow:hidden}
+  .stage{padding:0;display:block}
+  .stage-bg{display:none}
+  .device-wrap{width:100%;height:100%}
+  .device{position:static;width:100%;height:100%;border-radius:0;padding:0;transform:none;box-shadow:none;background:var(--white)}
+  .screen{width:100%;height:100%;border-radius:0}
+  .notch{display:none}
+  :root{--top:20px}
+}
+
+/* ---------- app chrome ---------- */
+#view{position:absolute;inset:0}
+.page{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--surface);padding:var(--top) 20px 116px;display:flex;flex-direction:column;gap:22px;scrollbar-width:none}
+.page::-webkit-scrollbar{display:none}
+.page > *{flex-shrink:0}
+.page.white{background:var(--white)}
+.page.notab{padding-bottom:36px}
+.page.flush{padding:0}
+.anim-push{animation:pushIn .24s cubic-bezier(.2,.8,.2,1) both}
+.anim-back{animation:backIn .24s cubic-bezier(.2,.8,.2,1) both}
+.anim-fade{animation:fadeIn .28s ease-out both}
+@keyframes pushIn{from{opacity:.4;transform:translateX(36px)}to{opacity:1;transform:none}}
+@keyframes backIn{from{opacity:.4;transform:translateX(-36px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes glow{from{opacity:0}to{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.75}}
+@keyframes dot{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:84px;background:var(--white);border-top:1px solid var(--line);display:flex;padding:8px 4px 0;z-index:30}
+.tabbar[hidden]{display:none!important}
+.tab{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:6px;min-height:48px;border:0;background:none;color:var(--muted);font-size:11px;font-weight:500}
+.tab[aria-current="page"]{color:var(--purple);font-weight:700}
+.tab[aria-current="page"]::before{content:"";position:absolute;top:-9px;width:24px;height:3px;border-radius:2px;background:var(--gold)}
+
+/* ---------- type ---------- */
+.h1{margin:0;font-family:var(--serif);font-weight:400;font-size:34px;line-height:1.1;letter-spacing:-0.01em;text-wrap:balance}
+.h2{margin:0;font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.15;letter-spacing:-0.01em}
+.sub{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}
+.label{margin:0 0 0 4px;font-size:13px;font-weight:600;color:var(--muted)}
+.small{font-size:13px;color:var(--muted);line-height:1.5}
+.bar{width:40px;height:3px;background:var(--gold);flex-shrink:0}
+.bar.dark{background:var(--obsidian)}
+.num{font-variant-numeric:tabular-nums}
+.stack{display:flex;flex-direction:column;gap:10px}
+.stack-s{display:flex;flex-direction:column;gap:6px}
+
+/* ---------- controls ---------- */
+.phead{display:flex;align-items:center;justify-content:space-between;margin:-8px -10px -8px}
+.iconbtn{width:44px;height:44px;border:0;border-radius:50%;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--obsidian)}
+.iconbtn.ring{background:var(--white);border:1px solid var(--line);position:relative}
+.dotbadge{position:absolute;top:10px;right:11px;width:9px;height:9px;border-radius:50%;background:var(--gold);border:2px solid var(--white)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:0 20px;border-radius:16px;border:0;background:var(--purple);color:var(--white);font-size:16px;font-weight:600;text-decoration:none;width:100%}
+.btn:hover{background:#4b0573}
+.btn.ghost{background:var(--white);color:var(--obsidian);border:1.5px solid var(--obsidian)}
+.btn.ghost:hover{background:var(--tint)}
+.btn.gold{background:var(--gold);color:var(--obsidian)}
+.btn.sm{min-height:44px;font-size:14px;width:auto;padding:0 16px;border-radius:14px}
+.btn[disabled]{opacity:.55;cursor:default}
+.link{border:0;background:none;padding:8px 0;color:var(--purple);font-weight:600;font-size:14px;text-decoration:none}
+.spinner{width:20px;height:20px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:var(--white);animation:spin .7s linear infinite}
+
+.card{background:var(--white);border:1px solid var(--line);border-radius:20px}
+.pad{padding:18px}
+.group{background:var(--white);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.div{height:1px;background:#efe9f4;margin-left:70px}
+.row{width:100%;display:flex;align-items:center;gap:14px;padding:14px 16px;min-height:66px;border:0;background:transparent;text-align:left;color:var(--obsidian)}
+.row:hover{background:#faf8fc}
+.chip{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--tint);color:var(--purple)}
+.chip.jade{background:var(--jade-t);color:var(--obsidian)}
+.chip.coral{background:var(--coral-t);color:var(--obsidian)}
+.chip.gold{background:var(--gold);color:var(--obsidian)}
+.chip.goldt{background:var(--gold-t);color:var(--obsidian)}
+.rtext{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.rt{font-size:15px;font-weight:600}
+.rs{font-size:13px;color:var(--muted);line-height:1.4}
+.amt{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chev{color:var(--faint)}
+
+.field{display:flex;flex-direction:column;gap:8px}
+.field > span:first-child{font-size:14px;font-weight:600}
+.input{width:100%;height:52px;padding:0 16px;border:1px solid var(--field);border-radius:14px;background:var(--white);font-size:16px;color:var(--obsidian);outline:none}
+.input:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--tint)}
+.input::placeholder{color:var(--faint)}
+.input.err{border-color:#c2185b}
+.errtxt{font-size:13px;color:#a3154d;font-weight:500}
+.inwrap{position:relative}
+.inwrap .input{padding-right:56px}
+.inwrap .iconbtn{position:absolute;right:4px;top:4px;color:var(--muted)}
+textarea.input{height:auto;min-height:120px;padding:14px 16px;line-height:1.5;resize:none}
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--white);font-size:14px;font-weight:600;color:var(--obsidian)}
+.pill[aria-pressed="true"]{background:var(--obsidian);border-color:var(--obsidian);color:var(--white)}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600}
+.tag.jade{background:var(--jade-t)}
+.tag.gold{background:var(--gold)}
+.tag.tint{background:var(--tint);color:var(--purple)}
+.switch{width:52px;height:32px;border-radius:999px;border:0;padding:3px;display:flex;background:#cfc6da;transition:background .2s;flex-shrink:0}
+.switch::after{content:"";width:26px;height:26px;border-radius:50%;background:var(--white);box-shadow:0 1px 3px rgba(46,11,86,.3);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--purple)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+
+/* ---------- overlays ---------- */
+.toast{position:absolute;left:16px;right:16px;top:calc(var(--top) - 6px);z-index:80;background:var(--obsidian);color:var(--white);padding:14px 16px;border-radius:16px;font-size:14px;font-weight:500;display:flex;gap:10px;align-items:center;box-shadow:0 10px 30px rgba(46,11,86,.3);transform:translateY(-20px);opacity:0;transition:all .25s;pointer-events:none}
+.toast.on{transform:none;opacity:1}
+.toast .ic{color:var(--gold)}
+.scrim{position:absolute;inset:0;background:rgba(46,11,86,.35);z-index:70;opacity:0;transition:opacity .2s}
+.scrim.on{opacity:1}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:71;background:var(--white);border-radius:28px 28px 0 0;padding:12px 20px 32px;display:flex;flex-direction:column;gap:16px;transform:translateY(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1);max-height:88%;overflow-y:auto}
+.sheet.on{transform:none}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+
+/* ---------- screens ---------- */
+.flowbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.launch{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--white)}
+.launch .lk{display:flex;align-items:center;gap:14px;animation:rise .7s ease-out both}
+.launch .lk img{width:72px;height:72px;border-radius:8px}
+.launch .flowbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.launch span{font-size:32px;color:var(--purple)}
+.hello{font-family:var(--serif);font-weight:400;font-size:96px;line-height:1;margin:0;letter-spacing:-0.01em}
+
+.balance{position:relative;border-radius:24px;overflow:hidden;border:1px solid var(--line);background:var(--white)}
+.balance .in{position:relative;padding:20px 22px 18px;display:flex;flex-direction:column;gap:12px}
+.bigamt{margin:0;font-family:var(--serif);font-weight:400;font-size:44px;line-height:1.05;letter-spacing:-0.01em;font-variant-numeric:tabular-nums}
+.bigamt small{font-size:28px}
+.qa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.qa button{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;background:none;font-size:12px;font-weight:600;color:var(--obsidian);padding:0}
+.qa .q{width:56px;height:56px;border-radius:18px;background:var(--white);border:1px solid var(--line);color:var(--purple);display:flex;align-items:center;justify-content:center}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.stat{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px;text-align:left;color:var(--obsidian)}
+.stat:hover{border-color:var(--field)}
+.stat .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.sechead{display:flex;align-items:baseline;justify-content:space-between}
+
+.otp{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.otp input{height:58px;min-width:0;text-align:center;font-size:22px;font-weight:700;border:1px solid var(--field);border-radius:14px;outline:none;background:var(--white)}
+.otp input:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--tint)}
+
+.paper{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;font-size:13.5px;line-height:1.6;box-shadow:0 8px 24px rgba(46,11,86,.06)}
+.paper img{width:32px;height:32px;border-radius:4px}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #efe9f4;font-size:14px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--muted)}
+.kv span:last-child{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+
+.steps{display:flex;flex-direction:column}
+.step{display:flex;gap:14px;position:relative;padding-bottom:22px}
+.step:last-child{padding-bottom:0}
+.step::before{content:"";position:absolute;left:13px;top:30px;bottom:2px;width:2px;background:var(--line)}
+.step:last-child::before{display:none}
+.sdot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:2px solid var(--line);background:var(--white);color:var(--white)}
+.step.done .sdot{background:var(--purple);border-color:var(--purple)}
+.step.now .sdot{border-color:var(--gold);background:var(--gold-t)}
+
+.chart text{font-family:var(--sans);font-size:11px;fill:var(--muted)}
+.range{width:100%;accent-color:var(--purple)}
+.result{background:var(--obsidian);color:var(--white);border-radius:24px;padding:22px;display:flex;flex-direction:column;gap:6px}
+.result .bigamt{color:var(--white)}
+.result .small{color:#d9cfe6}
+
+.chatlog{flex:1;display:flex;flex-direction:column;gap:10px;padding:8px 0}
+.msg{max-width:80%;padding:12px 14px;border-radius:18px;font-size:14.5px;line-height:1.5}
+.msg.them{background:var(--white);border:1px solid var(--line);border-bottom-left-radius:6px;align-self:flex-start}
+.msg.me{background:var(--purple);color:var(--white);border-bottom-right-radius:6px;align-self:flex-end}
+.typing{display:flex;gap:4px;padding:14px 16px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--faint);animation:dot 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+.composer{position:absolute;left:0;right:0;bottom:0;background:var(--white);border-top:1px solid var(--line);padding:10px 12px 22px;display:flex;flex-direction:column;gap:10px;z-index:20}
+.composer form{display:flex;gap:8px}
+.composer .input{height:48px;border-radius:24px}
+.sendbtn{width:48px;height:48px;border-radius:50%;border:0;background:var(--purple);color:var(--white);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.quick{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.quick .pill{white-space:nowrap;min-height:36px;font-size:13px}
+
+.faq{border-bottom:1px solid #efe9f4}
+.faq:last-child{border-bottom:0}
+.faq summary{list-style:none;display:flex;align-items:center;gap:12px;padding:16px;font-size:15px;font-weight:600;cursor:pointer;min-height:56px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary .ic{margin-left:auto;transition:transform .2s;color:var(--faint)}
+.faq[open] summary .ic{transform:rotate(90deg)}
+.faq p{margin:0;padding:0 16px 16px;font-size:14px;line-height:1.6;color:var(--muted)}
+.scan{width:96px;height:96px;border-radius:28px;background:var(--tint);color:var(--purple);display:flex;align-items:center;justify-content:center;align-self:center;animation:pulse 1.1s ease-in-out infinite}
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:28px 12px}
+</style>
+<style>body{margin:0}</style>
+</head>
+<body>
+
+
+<div class="stage-bg" aria-hidden="true"></div>
+<div class="stage">
+  <aside class="presenter" aria-label="About this demo">
+    <div class="lockup"><img src="logo.png" alt="FCMB"><span>Pensions</span></div>
+    <span class="bar"></span>
+    <h2>Your pension, finally in your pocket</h2>
+    <p>A working prototype of the redesigned FCMB Pensions app, built on the new brand: the Living Flow, calmer type and clearer money.</p>
+    <ol class="walk">
+      <li>Watch the app open, then log in. Any details work.</li>
+      <li>Check the balance, recent contributions and fund price on Home.</li>
+      <li>Generate a statement, then try the pension calculator.</li>
+      <li>Ask live chat a question, then log out and back in with Face ID.</li>
+    </ol>
+    <div class="pbtns">
+      <button class="btn ghost sm" id="restart" type="button"><svg class="ic" width="18" height="18" aria-hidden="true"><use href="#i-refresh"/></svg>Restart demo</button>
+    </div>
+    <p class="small">All names, balances and messages are sample data.</p>
+  </aside>
+
+  <div class="device-wrap" id="deviceWrap">
+    <div class="device">
+      <div class="screen" id="screen">
+        <div class="notch" aria-hidden="true"></div>
+        <div id="view"></div>
+        <nav class="tabbar" id="tabbar" aria-label="Main" hidden>
+          <button class="tab" data-tab="home" type="button"><svg class="ic" width="24" height="24" aria-hidden="true"><use href="#i-home"/></svg>Home</button>
+          <button class="tab" data-tab="account" type="button"><svg class="ic" width="24" height="24" aria-hidden="true"><use href="#i-user"/></svg>Account</button>
+          <button class="tab" data-tab="tools" type="button"><svg class="ic" width="24" height="24" aria-hidden="true"><use href="#i-tools"/></svg>Tools</button>
+          <button class="tab" data-tab="connect" type="button"><svg class="ic" width="24" height="24" aria-hidden="true"><use href="#i-chat"/></svg>Connect</button>
+          <button class="tab" data-tab="help" type="button"><svg class="ic" width="24" height="24" aria-hidden="true"><use href="#i-help"/></svg>Help</button>
+        </nav>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        <div class="scrim" id="scrim" hidden></div>
+        <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></symbol>
+  <symbol id="i-tools" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="m5.6 5.6 3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+  <symbol id="i-calc" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/></symbol>
+  <symbol id="i-officer" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.7-4.9-4-5.7"/></symbol>
+  <symbol id="i-id" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16c.5-1.5 1.6-2.2 3-2.2s2.5.7 3 2.2M15 10h3M15 14h3"/></symbol>
+  <symbol id="i-chevR" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-chevL" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M17 7 7 17M7 8v9h9"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M9.9 4.2A10 10 0 0 1 12 4c6.4 0 10 8 10 8a17 17 0 0 1-2.2 3.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 8 10 8a9.8 9.8 0 0 0 5.4-1.6M3 3l18 18M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-q" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.4-2.5 2.4M12 16.5h.01"/></symbol>
+  <symbol id="i-gift" viewBox="0 0 24 24"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-face" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9v1M15 9v1M12 9v4h-1M9.5 15.5a3.5 3.5 0 0 0 5 0"/></symbol>
+  <symbol id="i-finger" viewBox="0 0 24 24"><path d="M12 11c0 3-.6 5.8-1.8 8.3M8.4 7.9A5 5 0 0 1 17 11c0 1.4-.1 2.8-.4 4.1M6.1 17.5c.6-2 .9-4.2.9-6.5a5 5 0 0 1 .5-2.2M4.3 13.6A12 12 0 0 0 4.7 11a7.3 7.3 0 0 1 11.6-5.9M19.5 9.5c.3 2.6.1 5.2-.6 7.7M13.8 20.5c.7-1.5 1.2-3.1 1.5-4.8"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-6"/><path d="M15 8h5v5"/></symbol>
+  <symbol id="i-sms" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M8 10h.01M12 10h.01M16 10h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v13"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></symbol>
+</svg>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= sample data ================= */
+const DEMO_CODE = '482913';
+const BALANCE = 1297601.58, CONTRIB = 1056361.21, GROWTH = BALANCE - CONTRIB, PRICE = 8.8844;
+const EMPLOYER = 'Northwind Logistics Ltd';
+
+function freshState(){
+  return {
+    user:{first:'Elizabeth', middle:'', last:'Adewale', phone:'0803 456 7812', email:'elizabeth.adewale@example.com', employer:EMPLOYER, pin:'PEN100721570325', dob:'14 March 1992', gender:'Female', address:'12 Admiralty Way, Lekki, Lagos', kin:'Tunde Adewale (spouse)'},
+    everLoggedIn:false, bio:true, hideBal:false, unread:2,
+    filter:'All', period:'3', fund:'II', perf:'12',
+    calc:{age:34, ret:60, bal:Math.round(BALANCE), monthly:90000, rate:12},
+    chat:null, editBio:false, reg:null
+  };
+}
+let S = freshState();
+
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function lastDay(y,m){ return new Date(y, m+1, 0).getDate(); }
+const TX = (function(){
+  const list = [];
+  // 11 monthly remittances: Nov 2025 → Sep 2026 (employer 10% + employee 8%)
+  for(let i=0;i<11;i++){
+    const d = new Date(2025, 10 + i, 1); const y=d.getFullYear(), m=d.getMonth();
+    const date = new Date(y, m, lastDay(y,m));
+    list.push({type:'Employer', title:'Employer contribution', amt:50000, date});
+    list.push({type:'Employee', title:'Your contribution', amt:40000, date});
+  }
+  list.push({type:'Voluntary', title:'Voluntary contribution', amt:66361.21, date:new Date(2026,2,16)});
+  return list.sort((a,b)=>b.date-a.date || (a.type==='Employer'?-1:1));
+})();
+
+const NOTES = [
+  {t:'Your September contribution has arrived', b:'₦90,000.00 from '+EMPLOYER+' is now in your RSA.', d:'20 Oct', icon:'in', tone:'jade', unread:true},
+  {t:'Fund II price update', b:'Fund II closed at ₦8.8844 per unit, up 1.2% this month.', d:'19 Oct', icon:'chart', tone:'goldt', unread:true},
+  {t:'Your Q3 statement is ready', b:'See every contribution from July to September.', d:'5 Oct', icon:'doc', tone:'', unread:false},
+  {t:'Keep your details up to date', b:'Check your bio data so we can always reach you.', d:'18 Sep', icon:'id', tone:'', unread:false}
+];
+const SMS = [
+  {d:'30 Sep 2026, 4:12 pm', b:'FCMB Pensions: NGN90,000.00 contribution for Sep 2026 received. RSA bal: NGN1,297,601.58. Thank you.'},
+  {d:'19 Sep 2026, 9:00 am', b:'FCMB Pensions: Your access code is ****. It expires in 10 minutes. Never share it with anyone.'},
+  {d:'31 Aug 2026, 3:47 pm', b:'FCMB Pensions: NGN90,000.00 contribution for Aug 2026 received. RSA bal: NGN1,194,980.12.'},
+  {d:'31 Jul 2026, 2:05 pm', b:'FCMB Pensions: NGN90,000.00 contribution for Jul 2026 received. RSA bal: NGN1,094,511.70.'}
+];
+const FUNDS = { I:{name:'Fund I', note:'Higher growth, for contributors who choose it', end:3.9128, g:0.0135},
+                II:{name:'Fund II', note:'The default fund for contributors under 50', end:PRICE, g:0.0098},
+                III:{name:'Fund III', note:'Steadier growth for contributors 50 and over', end:2.7731, g:0.0082},
+                IV:{name:'Fund IV', note:'Capital protection for retirees', end:4.1206, g:0.0069} };
+const FAQS = [
+  ['What is an RSA?','Your Retirement Savings Account is where your pension contributions are kept and invested. It belongs to you and stays with you when you change jobs.'],
+  ['How much goes into my RSA each month?','Under the Pension Reform Act 2014, your employer contributes at least 10% of your monthly pay and you contribute at least 8%. You can also add voluntary contributions.'],
+  ['What is the fund price?','Your balance is held as units in a fund. The fund price is the value of one unit, so your balance is your units multiplied by the latest price.'],
+  ['Can I withdraw before I retire?','If you leave a job and have not found new work after four months, you may be able to withdraw up to 25% of your balance. Conditions apply, and your account officer can guide you.'],
+  ['How do I add voluntary contributions?','Ask your employer to add them through payroll, or speak to your account officer about paying in directly.'],
+  ['How do I update my details?','Go to Account, then Bio data, and tap Edit. Changes to your name or date of birth need supporting documents.']
+];
+
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const I = (n, s=20) => `<svg class="ic" width="${s}" height="${s}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const naira = (n, dp=2) => '₦' + Number(n).toLocaleString('en-NG',{minimumFractionDigits:dp, maximumFractionDigits:dp});
+const short = n => n >= 1e6 ? '₦' + (n/1e6).toFixed(n>=1e7?1:2).replace(/\.0+$/,'') + 'm' : naira(n,0);
+const fdate = d => d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+const initials = () => (S.user.first[0]||'') + (S.user.last[0]||'');
+const fullName = () => [S.user.first, S.user.middle, S.user.last].filter(Boolean).join(' ');
+const maskPhone = p => { const d = p.replace(/\D/g,''); return d.length >= 7 ? d.slice(0,4)+' *** '+d.slice(-4) : p; };
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
+
+function row(icon, title, sub, attrs='', tone='', trailing){
+  return `<button class="row" type="button" ${attrs}><span class="chip ${tone}" aria-hidden="true">${I(icon)}</span><span class="rtext"><span class="rt">${title}</span>${sub?`<span class="rs">${sub}</span>`:''}</span>${trailing ?? `<span class="chev">${I('chevR',18)}</span>`}</button>`;
+}
+const group = rows => `<div class="group">${rows.join('<div class="div"></div>')}</div>`;
+const section = (label, rows) => `<section class="stack"><h2 class="label">${label}</h2>${group(rows)}</section>`;
+function head(title, sub, right=''){
+  return `<div class="phead"><button class="iconbtn" type="button" data-back aria-label="Back">${I('chevL',22)}</button>${right}</div>
+  <div class="stack-s"><h1 class="h1">${title}</h1>${sub?`<p class="sub">${sub}</p>`:''}</div>`;
+}
+function txRow(t){
+  const icon = 'in';
+  return row(icon, t.title, fdate(t.date), `data-act="tx" data-i="${TX.indexOf(t)}"`, 'jade', `<span class="amt">+${naira(t.amt)}</span>`);
+}
+
+/* ================= screens ================= */
+const R = {};
+const TABS = ['home','account','tools','connect','help'];
+const AUTH = ['launch','welcome','login','register','otp','success'];
+
+R.launch = () => `<div class="launch"><img class="flowbg" src="flow_splash.jpg" alt="" style="opacity:.55;animation:glow 1.4s ease-out both"><div class="lk" style="position:relative"><img src="logo.png" alt="FCMB"><span>Pensions</span></div></div>`;
+
+R.welcome = () => `<div class="page white flush">
+  <img class="flowbg" src="flow_splash.jpg" alt="" style="animation:glow 1.2s ease-out both">
+  <div style="position:absolute;top:var(--top);left:24px;display:flex;align-items:center;gap:12px;animation:glow .6s ease-out both"><img src="logo.png" alt="FCMB" style="width:40px;height:40px;border-radius:6px"><span style="font-size:22px;color:var(--purple)">Pensions</span></div>
+  <div style="position:absolute;top:34%;left:24px;right:24px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;animation:rise .5s .15s ease-out both">
+    <h1 class="hello">Hello</h1>
+    <p style="margin:0;font-size:17px;line-height:1.45">Your retirement, growing with you.</p>
+  </div>
+  <div style="position:absolute;left:24px;right:24px;bottom:44px;display:flex;flex-direction:column;align-items:center;gap:22px;animation:rise .5s .3s ease-out both">
+    <button type="button" data-act="faceid" style="display:flex;flex-direction:column;align-items:center;gap:10px;border:0;background:none;padding:8px 16px;color:var(--obsidian)">
+      <span class="bar dark" style="width:150px;height:2px"></span>
+      <span style="display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600">${I('face')}Use Face ID to log in</span>
+    </button>
+    <div style="width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+      <button class="btn" type="button" data-go="login">Log in</button>
+      <button class="btn ghost" type="button" data-go="register">Create profile</button>
+    </div>
+  </div></div>`;
+
+R.login = () => `<div class="page white notab">
+  ${head('Welcome back','Log in with your RSA PIN and the access code we send to your phone.')}
+  <form id="loginForm" class="stack" style="gap:18px" novalidate>
+    <label class="field"><span>RSA PIN</span><input class="input" id="lgPin" autocomplete="username" placeholder="PEN000000000000"></label>
+    <label class="field"><span>Mobile number</span><input class="input" id="lgPhone" type="tel" inputmode="tel" placeholder="0800 000 0000"></label>
+    <div class="field"><label for="lgCode" style="font-size:14px;font-weight:600">Access code</label>
+      <div class="inwrap"><input class="input" id="lgCode" type="password" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code"><button class="iconbtn" type="button" data-act="peek" data-for="lgCode" aria-label="Show access code">${I('eye')}</button></div>
+      <span class="errtxt" id="lgErr" hidden></span>
+      <button class="link" type="button" data-act="reqcode" style="align-self:flex-end">Request access code</button>
+    </div>
+    <button class="btn" type="submit" id="lgBtn">Sign in</button>
+  </form>
+  <p class="small" style="text-align:center;margin:0">New to FCMB Pensions? <button class="link" type="button" data-go="register" style="padding:0">Create a profile</button></p>
+  <p class="small" style="text-align:center;margin:auto 0 0">Version 4.0.0</p>
+</div>`;
+
+R.register = () => `<div class="page white notab">
+  ${head('Create your profile','It takes about a minute. We will send a code to confirm your number.', `<button class="link" type="button" data-act="fillreg" style="padding:8px 10px">Fill sample details</button>`)}
+  <form id="regForm" class="stack" style="gap:16px" novalidate>
+    <label class="field"><span>First name</span><input class="input" id="rgFirst" autocomplete="given-name" placeholder="Enter your first name"></label>
+    <label class="field"><span>Middle name <span style="font-weight:500;color:var(--muted)">(optional)</span></span><input class="input" id="rgMiddle" autocomplete="additional-name" placeholder="Enter your middle name"></label>
+    <label class="field"><span>Last name</span><input class="input" id="rgLast" autocomplete="family-name" placeholder="Enter your last name"></label>
+    <label class="field"><span>Mobile number</span><input class="input" id="rgPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="0800 000 0000"></label>
+    <label class="field"><span>Email address</span><input class="input" id="rgEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
+    <label class="field"><span>Employer name</span><input class="input" id="rgEmployer" autocomplete="organization" placeholder="Where you work"></label>
+    <label class="field"><span>Referral code <span style="font-weight:500;color:var(--muted)">(optional)</span></span><input class="input" id="rgRef" placeholder="e.g. FCMB-AG-2041"><span class="small">Referred by one of our sales agents? Add their code here.</span></label>
+    <span class="errtxt" id="rgErr" hidden></span>
+    <button class="btn" type="submit">Create profile</button>
+  </form>
+  <p class="small" style="text-align:center;margin:0">Already have a profile? <button class="link" type="button" data-go="login" style="padding:0">Log in</button></p>
+</div>`;
+
+R.otp = () => `<div class="page white notab">
+  ${head('Confirm your number', 'Enter the 6-digit code we sent to ' + esc(maskPhone(S.reg?.phone || S.user.phone)) + '.')}
+  <fieldset style="border:0;margin:0;padding:0" class="stack">
+    <legend class="label" style="margin:0 0 10px">Verification code</legend>
+    <div class="otp" id="otp">${[1,2,3,4,5,6].map(i=>`<input inputmode="numeric" maxlength="1" aria-label="Digit ${i}" id="otp${i}">`).join('')}</div>
+  </fieldset>
+  <span class="errtxt" id="otpErr" hidden></span>
+  <div class="card pad" style="display:flex;gap:12px;align-items:center;background:var(--gold-t);border-color:transparent">${I('info')}<span class="small" style="color:var(--obsidian)">Demo: any code works. <button class="link" type="button" data-act="fillotp" style="padding:0">Fill one in</button></span></div>
+  <p class="small" style="margin:0" id="resend">You can request a new code in 0:30</p>
+  <button class="btn" type="button" data-act="verifyotp" style="margin-top:auto">Verify</button>
+</div>`;
+
+R.success = () => `<div class="page white notab" style="justify-content:center;text-align:center;align-items:center;gap:20px">
+  <span class="chip gold" style="width:72px;height:72px;border-radius:24px">${I('check',36)}</span>
+  <span class="bar"></span>
+  <h1 class="h1" style="font-size:40px">You’re all set, ${esc(S.user.first)}</h1>
+  <p class="sub" style="max-width:300px">Your profile is ready. Your RSA PIN is below, and we have sent it to your phone too.</p>
+  <div class="card pad" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left">
+    <span class="rtext"><span class="small">RSA PIN</span><span class="rt num" style="font-size:18px">${esc(S.user.pin)}</span></span>
+    <button class="iconbtn" type="button" data-act="copy" data-text="${esc(S.user.pin)}" aria-label="Copy RSA PIN">${I('copy')}</button>
+  </div>
+  <button class="btn" type="button" data-act="enter" style="margin-top:12px">Go to my dashboard</button>
+</div>`;
+
+R.home = () => {
+  const recent = TX.slice(0,3);
+  return `<div class="page">
+  <header style="display:flex;align-items:center;gap:12px">
+    <div aria-hidden="true" style="width:48px;height:48px;border-radius:50%;background:var(--purple);color:var(--white);display:flex;align-items:center;justify-content:center;font-weight:700">${esc(initials())}</div>
+    <div class="rtext"><span class="small">${greeting()}</span><span style="font-size:18px;font-weight:700">${esc(S.user.first)} ${esc(S.user.last)}</span></div>
+    <button class="iconbtn ring" type="button" data-go="notifications" aria-label="Notifications">${I('bell')}${S.unread?'<span class="dotbadge"></span>':''}</button>
+    <button class="iconbtn ring" type="button" data-go="settings" aria-label="Settings">${I('gear')}</button>
+  </header>
+  <section class="balance" aria-label="RSA balance">
+    <img class="flowbg" src="flow_card.jpg" alt="">
+    <div class="in">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:14px;font-weight:500;display:flex;align-items:center;gap:4px">Your RSA balance
+          <button class="iconbtn" type="button" data-act="hidebal" aria-label="${S.hideBal?'Show':'Hide'} balance" style="width:36px;height:36px">${I(S.hideBal?'eyeoff':'eye',18)}</button></span>
+        <button class="tag gold" type="button" data-go="performance" style="border:0">${FUNDS[S.fund].name}</button>
+      </div>
+      <p class="bigamt" id="bal">${S.hideBal ? '₦ ••••••' : `<small>₦</small>${Math.floor(BALANCE).toLocaleString('en-NG')}<small>.${(BALANCE%1).toFixed(2).slice(2)}</small>`}</p>
+      <span class="bar dark"></span>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-size:13px">RSA PIN <span class="num">${esc(S.user.pin)}</span></span>
+        <button class="iconbtn" type="button" data-act="copy" data-text="${esc(S.user.pin)}" aria-label="Copy RSA PIN" style="margin:-10px -10px -10px 0">${I('copy',18)}</button>
+      </div>
+    </div>
+  </section>
+  <nav class="qa" aria-label="Quick actions">
+    <button type="button" data-go="statement"><span class="q">${I('doc',22)}</span>Statement</button>
+    <button type="button" data-go="contributions"><span class="q">${I('download',22)}</span>Contributions</button>
+    <button type="button" data-go="calculator"><span class="q">${I('calc',22)}</span>Calculator</button>
+    <button type="button" data-go="chat"><span class="q">${I('chat',22)}</span>Live chat</button>
+  </nav>
+  <section class="stats" aria-label="Summary">
+    <button class="stat" type="button" data-go="contributions"><span class="small">Total contributions</span><span class="v">${S.hideBal?'₦ ••••':naira(CONTRIB)}</span></button>
+    <button class="stat" type="button" data-go="performance"><span class="small">Growth to date</span><span class="v">${S.hideBal?'₦ ••••':naira(GROWTH)}</span><span class="tag jade" style="align-self:flex-start">+${(GROWTH/CONTRIB*100).toFixed(1)}% on contributions</span></button>
+    <button class="stat" type="button" data-go="withdrawals"><span class="small">Total withdrawals</span><span class="v">₦0.00</span></button>
+    <button class="stat" type="button" data-go="performance"><span class="small">Fund price</span><span class="v">${naira(PRICE,4)}</span><span class="small">per unit · ${Math.round(BALANCE/PRICE).toLocaleString('en-NG')} units</span></button>
+  </section>
+  <section class="stack" aria-labelledby="recentH">
+    <div class="sechead"><h2 class="h2" id="recentH">Recent activity</h2><button class="link" type="button" data-go="contributions">View all</button></div>
+    ${group(recent.map(txRow))}
+  </section></div>`;
+};
+
+R.notifications = () => `<div class="page">
+  ${head('Notifications', S.unread ? S.unread + ' new' : 'You’re all caught up', S.unread?`<button class="link" type="button" data-act="readall" style="padding:8px 10px">Mark all read</button>`:'')}
+  ${group(NOTES.map((n,i)=>row(n.icon, n.t + (n.unread?' <span class="tag gold" style="margin-left:4px">New</span>':''), n.b + '<br><span style="color:var(--faint)">' + n.d + '</span>', `data-act="note" data-i="${i}"`, n.tone, '')))}
+</div>`;
+
+R.settings = () => `<div class="page">
+  ${head('Settings')}
+  <section class="card pad" style="display:flex;align-items:center;gap:14px">
+    <div aria-hidden="true" style="width:56px;height:56px;border-radius:50%;background:var(--purple);color:var(--white);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700">${esc(initials())}</div>
+    <div class="rtext"><span style="font-size:18px;font-weight:700">${esc(fullName())}</span><span class="small">RSA PIN ${esc(S.user.pin)}</span></div>
+  </section>
+  <section class="stack"><h2 class="label">Security and sharing</h2>
+    <div class="group">
+      <div class="row" style="cursor:default"><span class="chip">${I('finger')}</span><span class="rtext"><span class="rt" id="bioL">Biometric login</span><span class="rs">Use Face ID or fingerprint to log in</span></span><button class="switch" type="button" role="switch" aria-labelledby="bioL" aria-checked="${S.bio}" data-act="bio"></button></div>
+      <div class="div"></div>
+      <div class="row" style="cursor:default"><span class="chip">${I('eyeoff')}</span><span class="rtext"><span class="rt" id="hbL">Hide balance on Home</span><span class="rs">Useful when people are around</span></span><button class="switch" type="button" role="switch" aria-labelledby="hbL" aria-checked="${S.hideBal}" data-act="hidebal2"></button></div>
+      <div class="div"></div>
+      ${row('gift','Referrals','Invite friends and family to join us','data-go="referrals"')}
+    </div>
+  </section>
+  <button class="btn ghost" type="button" data-act="logout">${I('logout',18)}Log out</button>
+  <p class="small" style="text-align:center;margin:0">Version 4.0.0</p>
+</div>`;
+
+R.contributions = () => {
+  const f = S.filter;
+  const list = TX.filter(t => f==='All' || t.type===f);
+  const total = list.reduce((s,t)=>s+t.amt,0);
+  const byMonth = {};
+  list.forEach(t => { const k = MONTHS[t.date.getMonth()] + ' ' + t.date.getFullYear(); (byMonth[k] = byMonth[k] || []).push(t); });
+  return `<div class="page">
+  ${head('Contributions', 'Every payment into your RSA.')}
+  <div class="pills" role="group" aria-label="Filter">${['All','Employer','Employee','Voluntary'].map(x=>`<button class="pill" type="button" aria-pressed="${x===f}" data-act="filter" data-v="${x}">${x==='Employee'?'Yours':x}</button>`).join('')}</div>
+  <div class="card pad" style="display:flex;justify-content:space-between;align-items:center"><span class="small">${list.length} payments · last 12 months</span><span class="amt">${naira(total)}</span></div>
+  ${Object.keys(byMonth).map(k => `<section class="stack"><h2 class="label">${k}</h2>${group(byMonth[k].map(txRow))}</section>`).join('')}
+</div>`;
+};
+
+R.account = () => `<div class="page">
+  <h1 class="h1" style="font-size:36px">My account</h1>
+  <section class="card pad" style="display:flex;align-items:center;gap:14px">
+    <div aria-hidden="true" style="width:56px;height:56px;border-radius:50%;background:var(--purple);color:var(--white);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700">${esc(initials())}</div>
+    <div class="rtext"><span style="font-size:18px;font-weight:700">${esc(fullName())}</span><span class="small">RSA PIN ${esc(S.user.pin)}</span></div>
+    <button class="iconbtn" type="button" data-act="copy" data-text="${esc(S.user.pin)}" aria-label="Copy RSA PIN" style="background:var(--tint);color:var(--purple);border-radius:12px">${I('copy',18)}</button>
+  </section>
+  ${section('Documents',[row('mail','Welcome letter','Your enrolment letter, ready to download','data-go="letter"'), row('doc','Statement of account','Choose any period and download it','data-go="statement"')])}
+  ${section('My pension',[row('checkc','Benefit status','See what you can apply for, and track it','data-go="benefit"'), row('download','Contributions','Every payment into your RSA, month by month','data-go="contributions"'), row('bank','Withdrawals','Requests and payments made so far','data-go="withdrawals"')])}
+  ${section('Your details',[row('officer','Account officer','The person looking after your account','data-go="officer"'), row('id','Bio data','Your personal and contact details','data-go="biodata"')])}
+</div>`;
+
+R.letter = () => `<div class="page">
+  ${head('Welcome letter')}
+  <article class="paper" aria-label="Welcome letter">
+    <div style="display:flex;align-items:center;gap:8px;color:var(--purple)"><img src="logo.png" alt="FCMB"><span style="font-size:15px">Pensions</span></div>
+    <span class="small">12 November 2025</span>
+    <p style="margin:0">Dear ${esc(S.user.first)},</p>
+    <p style="margin:0">Welcome to FCMB Pensions. We are glad to have you with us, and we look forward to growing your retirement savings together.</p>
+    <p style="margin:0">Your Retirement Savings Account is now open. Please keep these details safe:</p>
+    <div><div class="kv"><span>RSA PIN</span><span>${esc(S.user.pin)}</span></div><div class="kv"><span>Fund</span><span>${FUNDS[S.fund].name}</span></div><div class="kv"><span>Employer</span><span>${esc(S.user.employer)}</span></div></div>
+    <p style="margin:0">You can see your balance, contributions and statements in this app at any time. If you need us, we are a message away.</p>
+    <p style="margin:0">With warm regards,<br><strong>The FCMB Pensions team</strong></p>
+  </article>
+  <button class="btn" type="button" data-act="toast" data-msg="Welcome letter saved to your phone">${I('download',18)}Download PDF</button>
+</div>`;
+
+R.statement = () => {
+  const m = +S.period;
+  const opts = [['3','Last 3 months'],['6','Last 6 months'],['12','Last 12 months'],['0','Since joining']];
+  const since = m===0 ? null : new Date(2026, 9 - m, 1);
+  const contrib = TX.filter(t => !since || t.date >= since).reduce((s,t)=>s+t.amt,0);
+  const growth = m===0 ? GROWTH : GROWTH * (m/12) * 0.85;
+  const opening = BALANCE - contrib - growth;
+  const label = m===0 ? 'Nov 2025 to Oct 2026' : MONTHS[since.getMonth()] + ' ' + since.getFullYear() + ' to Oct 2026';
+  return `<div class="page">
+  ${head('Statement of account','Pick a period to see a summary, then download or email it.')}
+  <div class="pills" role="group" aria-label="Period">${opts.map(([v,l])=>`<button class="pill" type="button" aria-pressed="${v===S.period}" data-act="period" data-v="${v}">${l}</button>`).join('')}</div>
+  <section class="card pad">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px"><h2 class="h2" style="font-size:20px">Summary</h2><span class="small">${label}</span></div>
+    <div class="kv"><span>Opening balance</span><span>${naira(Math.max(0,opening))}</span></div>
+    <div class="kv"><span>Contributions</span><span>+${naira(contrib)}</span></div>
+    <div class="kv"><span>Investment growth</span><span>+${naira(growth)}</span></div>
+    <div class="kv"><span>Withdrawals</span><span>₦0.00</span></div>
+    <div class="kv" style="font-size:16px"><span style="color:var(--obsidian);font-weight:700">Closing balance</span><span>${naira(BALANCE)}</span></div>
+  </section>
+  <div class="stack">
+    <button class="btn" type="button" data-act="genstmt" data-mode="download">${I('download',18)}Download PDF</button>
+    <button class="btn ghost" type="button" data-act="genstmt" data-mode="email">${I('mail',18)}Email it to me</button>
+  </div>
+</div>`;
+};
+
+R.benefit = () => `<div class="page">
+  ${head('Benefit status')}
+  <section class="card pad stack" style="gap:12px">
+    <span class="tag tint" style="align-self:flex-start">No open application</span>
+    <h2 class="h2" style="font-size:22px">Your RSA keeps growing until you retire</h2>
+    <p class="small" style="margin:0">Retirement benefits open at 50. Until then, there are two ways you may be able to use part of your savings.</p>
+  </section>
+  ${section('You may be able to apply for',[row('bank','25% withdrawal','If you leave a job and are out of work for four months','data-act="benefitinfo" data-k="25"','goldt'), row('home','Equity for a home','Use part of your RSA towards a mortgage deposit','data-act="benefitinfo" data-k="mortgage"','goldt')])}
+  <section class="stack"><h2 class="label">How an application moves</h2>
+    <div class="card pad steps">
+      ${[['Submit your request','In the app or at any of our offices'],['Documents checked','We confirm your details, usually within 3 days'],['PenCom approval','We send your request to the regulator'],['Payment','Paid into your bank account']].map((s,i)=>`<div class="step"><span class="sdot">${''}</span><div class="rtext"><span class="rt">${s[0]}</span><span class="rs">${s[1]}</span></div></div>`).join('')}
+    </div>
+  </section>
+</div>`;
+
+R.withdrawals = () => `<div class="page">
+  ${head('Withdrawals')}
+  <section class="card empty">
+    <span class="chip goldt" style="width:56px;height:56px;border-radius:18px">${I('bank',26)}</span>
+    <h2 class="h2" style="font-size:22px">No withdrawals yet</h2>
+    <p class="small" style="margin:0;max-width:280px">Your full balance is still invested and growing. Any request you make will show up here, step by step.</p>
+    <button class="btn ghost sm" type="button" data-go="benefit" style="margin-top:6px">See what you can apply for</button>
+  </section>
+</div>`;
+
+R.officer = () => `<div class="page">
+  ${head('Account officer','Your go-to person for anything about your RSA.')}
+  <section class="card pad stack" style="gap:16px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div aria-hidden="true" style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--obsidian);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700">CO</div>
+      <div class="rtext"><span style="font-size:18px;font-weight:700">Chinedu Okafor</span><span class="small">Relationship officer · Lagos</span></div>
+    </div>
+    <div><div class="kv"><span>Phone</span><span>0809 555 0142</span></div><div class="kv"><span>Email</span><span>chinedu.okafor@example.com</span></div><div class="kv"><span>Available</span><span>Mon to Fri, 8am to 5pm</span></div></div>
+  </section>
+  <div class="stack">
+    <button class="btn" type="button" data-go="chat">${I('chat',18)}Message Chinedu</button>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+      <button class="btn ghost" type="button" data-act="copy" data-text="0809 555 0142">${I('copy',18)}Copy number</button>
+      <button class="btn ghost" type="button" data-act="copy" data-text="chinedu.okafor@example.com">${I('copy',18)}Copy email</button>
+    </div>
+  </div>
+</div>`;
+
+R.biodata = () => {
+  const u = S.user, e = S.editBio;
+  const fixed = [['Full name', fullName()],['Date of birth', u.dob],['Gender', u.gender],['RSA PIN', u.pin],['Employer', u.employer]];
+  const editable = [['Mobile number','phone','tel'],['Email','email','email'],['Home address','address','text'],['Next of kin','kin','text']];
+  return `<div class="page">
+  ${head('Bio data', e ? 'Update your contact details, then save.' : 'Keep these up to date so we can always reach you.', e ? '' : `<button class="link" type="button" data-act="editbio" style="padding:8px 10px">Edit</button>`)}
+  <section class="card pad" style="padding-block:6px">${fixed.map(([k,v])=>`<div class="kv"><span>${k}</span><span>${esc(v)}</span></div>`).join('')}</section>
+  ${e ? `<form id="bioForm" class="stack" style="gap:14px" novalidate>${editable.map(([l,k,t])=>`<label class="field"><span>${l}</span><input class="input" id="bd_${k}" type="${t}" value="${esc(u[k])}"></label>`).join('')}
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"><button class="btn ghost" type="button" data-act="canceledit">Cancel</button><button class="btn" type="submit">Save</button></div></form>`
+  : `<section class="card pad" style="padding-block:6px">${editable.map(([l,k])=>`<div class="kv"><span>${l}</span><span>${esc(u[k])}</span></div>`).join('')}</section>`}
+  <p class="small" style="margin:0">To change your name or date of birth, message your account officer with a supporting document.</p>
+</div>`;
+};
+
+R.tools = () => `<div class="page">
+  <div class="stack-s"><h1 class="h1" style="font-size:36px">Tools</h1><p class="sub">Plan ahead and see how your fund is moving.</p></div>
+  ${[['calc','Pension calculator','Estimate your pot at retirement, and see how a little more each month changes the picture.','Start estimating','calculator'],
+     ['chart','Fund performance','Track your fund price and returns over time, compared across our funds.','View performance','performance']].map(([ic,t,b,c,go])=>`
+  <button type="button" data-go="${go}" class="card" style="padding:20px;display:flex;flex-direction:column;gap:14px;text-align:left;color:var(--obsidian)">
+    <span class="chip gold" style="width:48px;height:48px;border-radius:14px">${I(ic,24)}</span>
+    <span class="stack-s"><span style="font-family:var(--serif);font-size:24px;letter-spacing:-0.01em">${t}</span><span class="small" style="font-size:14px">${b}</span></span>
+    <span style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:var(--purple)">${c}${I('chevR',16)}</span>
+  </button>`).join('')}
+</div>`;
+
+function project(c){
+  const n = Math.max(0, (c.ret - c.age) * 12), r = c.rate/100/12;
+  const fv = (months) => c.bal*Math.pow(1+r,months) + (r ? c.monthly*((Math.pow(1+r,months)-1)/r) : c.monthly*months);
+  const pot = fv(n);
+  const i = 0.08/12, N = 240;
+  const monthlyIncome = pot * i / (1 - Math.pow(1+i, -N));
+  const pts = []; const step = Math.max(1, Math.ceil((c.ret - c.age)/6));
+  for(let a=c.age; a<c.ret; a+=step) pts.push([a, fv((a-c.age)*12)]);
+  pts.push([c.ret, pot]);
+  return {pot, monthlyIncome, pts};
+}
+function calcChart(pts){
+  const W=350, H=170, L=8, B=24, T=18, max = pts[pts.length-1][1] || 1;
+  const bw = (W - L*2) / pts.length;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Projected balance by age">
+    ${pts.map(([a,v],i)=>{ const h = Math.max(3,(H-B-T) * v/max), x = L + i*bw + 6, y = H-B-h, last = i===pts.length-1;
+      return `<rect x="${x}" y="${y}" width="${bw-12}" height="${h}" rx="6" fill="${last?'#ffb81c':'#efe5f6'}"></rect>
+      ${last?`<text x="${x+(bw-12)/2}" y="${y-6}" text-anchor="middle" style="font-weight:700;fill:#2e0b56">${short(v)}</text>`:''}
+      <text x="${x+(bw-12)/2}" y="${H-6}" text-anchor="middle">${a}</text>`; }).join('')}
+  </svg>`;
+}
+R.calculator = () => {
+  const c = S.calc, p = project(c);
+  const fld = (id,label,val,min,max,step,suf='') => `<label class="field"><span style="display:flex;justify-content:space-between"><span>${label}</span><output class="num" id="o_${id}" style="font-weight:700">${suf==='₦'?naira(val,0):val+suf}</output></span><input class="range" type="range" id="c_${id}" min="${min}" max="${max}" step="${step}" value="${val}" data-calc="${id}"></label>`;
+  return `<div class="page">
+  ${head('Pension calculator','Move the sliders to see how your pot could grow.')}
+  <section class="result" aria-live="polite">
+    <span class="small">Estimated pot at ${c.ret}</span>
+    <p class="bigamt" id="r_pot">${naira(p.pot,0)}</p>
+    <span class="small" id="r_inc">About ${naira(p.monthlyIncome,0)} a month if drawn over 20 years</span>
+  </section>
+  <section class="card pad" id="r_chart">${calcChart(p.pts)}</section>
+  <section class="card pad stack" style="gap:18px">
+    ${fld('age','Your age',c.age,18,59,1,'')}
+    ${fld('ret','Retirement age',c.ret,50,70,1,'')}
+    ${fld('monthly','Monthly contribution',c.monthly,10000,500000,5000,'₦')}
+    ${fld('rate','Expected yearly return',c.rate,5,20,0.5,'%')}
+  </section>
+  <p class="small" style="margin:0">Starts from your current balance of ${naira(BALANCE)}. This is an estimate, not a promise; real returns go up and down.</p>
+  <button class="btn ghost" type="button" data-go="chat">Talk to us about adding more</button>
+</div>`;
+};
+
+function series(code){
+  const f = FUNDS[code]; const pts = [];
+  for(let k=12;k>=0;k--){ const wig = Math.sin((12-k)*1.3 + code.length) * 0.006; pts.push(f.end / Math.pow(1+f.g, k) * (1 + (k? wig:0))); }
+  return pts;
+}
+function perfChart(code, months){
+  const all = series(code), s = all.slice(12 - +months);
+  const W=350,H=190,L=44,Rm=12,T=14,B=26;
+  const mn = Math.min(...s), mx = Math.max(...s), pad = (mx-mn)*0.15 || 0.01, lo = mn-pad, hi = mx+pad;
+  const x = i => L + i*(W-L-Rm)/(s.length-1), y = v => T + (H-T-B)*(1-(v-lo)/(hi-lo));
+  const line = s.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  const area = line + ` L${x(s.length-1).toFixed(1)} ${H-B} L${L} ${H-B} Z`;
+  const ticks = [lo+(hi-lo)*0.15, (lo+hi)/2, hi-(hi-lo)*0.15];
+  const startM = new Date(2026, 9 - (s.length-1), 1);
+  const lbl = d => MONTHS[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2);
+  const midM = new Date(2026, 9 - Math.floor((s.length-1)/2), 1);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${FUNDS[code].name} unit price over ${months} months">
+    ${ticks.map(t=>`<line x1="${L}" x2="${W-Rm}" y1="${y(t)}" y2="${y(t)}" stroke="#efe9f4" stroke-width="1"></line><text x="${L-6}" y="${y(t)+4}" text-anchor="end">${t.toFixed(2)}</text>`).join('')}
+    <path d="${area}" fill="#efe5f6" opacity=".7"></path>
+    <path d="${line}" fill="none" stroke="#5c068c" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></path>
+    <circle cx="${x(s.length-1)}" cy="${y(s[s.length-1])}" r="5.5" fill="#ffb81c" stroke="#2e0b56" stroke-width="2"></circle>
+    <text x="${L}" y="${H-6}">${lbl(startM)}</text><text x="${(L+W-Rm)/2}" y="${H-6}" text-anchor="middle">${lbl(midM)}</text><text x="${W-Rm}" y="${H-6}" text-anchor="end">Oct 26</text>
+  </svg>`;
+}
+R.performance = () => {
+  const code = S.fund, m = S.perf, all = series(code), s = all.slice(12 - +m);
+  const ret = (s[s.length-1]/s[0]-1)*100;
+  return `<div class="page">
+  ${head('Fund performance', 'Unit prices for each RSA fund.')}
+  <div class="pills" role="group" aria-label="Fund">${Object.keys(FUNDS).map(k=>`<button class="pill" type="button" aria-pressed="${k===code}" data-act="fund" data-v="${k}">Fund ${k}</button>`).join('')}</div>
+  <section class="card pad stack" style="gap:14px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div class="rtext"><span class="small">${FUNDS[code].name} · ${FUNDS[code].note}</span><span class="bigamt" style="font-size:36px">${naira(FUNDS[code].end,4)}</span></div>
+      <span class="tag jade" style="white-space:nowrap">+${ret.toFixed(1)}% · ${m==='3'?'3 months':m==='6'?'6 months':'1 year'}</span>
+    </div>
+    ${perfChart(code, m)}
+    <div class="pills" role="group" aria-label="Period">${[['3','3M'],['6','6M'],['12','1Y']].map(([v,l])=>`<button class="pill" type="button" aria-pressed="${v===m}" data-act="perf" data-v="${v}">${l}</button>`).join('')}</div>
+  </section>
+  <section class="card pad" style="display:flex;gap:12px;align-items:center">${I('info')}<span class="small" style="margin:0">You’re in <strong style="color:var(--obsidian)">Fund II</strong>, the default fund for contributors under 50. Prices shown are sample data.</span></section>
+</div>`;
+};
+
+R.connect = () => `<div class="page">
+  <div class="stack-s"><h1 class="h1" style="font-size:36px">Connect</h1><p class="sub">Your messages, and every way to reach us.</p></div>
+  ${section('Inbox',[row('bell','Notifications', S.unread ? S.unread+' new' : 'All caught up','data-go="notifications"'), row('sms','SMS history','Every text we have sent you','data-go="sms"')])}
+  ${section('Talk to us',[row('chat','Live chat','We usually reply in a few minutes','data-go="chat"'), row('mail','Email us','Send a message and we’ll reply by email','data-go="email"')])}
+  <section class="stack"><h2 class="label">Follow us</h2>
+    <div class="pills">${['WhatsApp','Instagram','Facebook','LinkedIn','X'].map(s=>`<button class="pill" type="button" data-act="social" data-v="${s}" style="min-height:44px;display:flex;align-items:center;gap:6px">${s}<span style="color:var(--purple)">${I('out',14)}</span></button>`).join('')}</div>
+  </section>
+</div>`;
+
+R.sms = () => `<div class="page">
+  ${head('SMS history','Texts sent to ' + esc(maskPhone(S.user.phone)) + '.')}
+  <div class="stack">${SMS.map(m=>`<div class="card pad stack-s"><span class="small">${m.d}</span><span style="font-size:14.5px;line-height:1.55">${esc(m.b)}</span></div>`).join('')}</div>
+</div>`;
+
+R.email = () => `<div class="page notab">
+  ${head('Email us','We’ll reply to ' + esc(S.user.email) + '.')}
+  <form id="mailForm" class="stack" style="gap:16px" novalidate>
+    <label class="field"><span>Topic</span><select class="input" id="mlTopic"><option>My balance or contributions</option><option>Statements and documents</option><option>Updating my details</option><option>Withdrawals and benefits</option><option>Something else</option></select></label>
+    <label class="field"><span>Message</span><textarea class="input" id="mlBody" placeholder="Tell us what you need"></textarea></label>
+    <span class="errtxt" id="mlErr" hidden></span>
+    <button class="btn" type="submit">${I('send',18)}Send message</button>
+  </form>
+</div>`;
+
+const BOT = [
+  [/balance|how much/i, () => `Your RSA balance is ${naira(BALANCE)}, held as ${Math.round(BALANCE/PRICE).toLocaleString('en-NG')} units of Fund II at ${naira(PRICE,4)} per unit.`],
+  [/statement/i, () => 'You can download a statement for any period under Account, then Statement of account. Want me to email your last 3 months now? Just say "yes".'],
+  [/^yes/i, () => `Done. Your statement for the last 3 months is on its way to ${S.user.email}.`],
+  [/detail|update|address|phone|email/i, () => 'You can update your phone, email, address and next of kin under Account, then Bio data. Name changes need a supporting document.'],
+  [/officer|chinedu|agent|person/i, () => 'Your account officer is Chinedu Okafor. I have let him know you would like to talk, and he will message you here shortly.'],
+  [/withdraw|25|mortgage|retire/i, () => 'You may be able to withdraw up to 25% if you have been out of work for four months, or use part of your RSA towards a mortgage. See Account, then Benefit status, for details.'],
+  [/thank/i, () => 'You’re welcome. We’re here whenever you need us.'],
+];
+R.chat = () => {
+  if(!S.chat) S.chat = [{me:false, t:`Hi ${S.user.first}, I’m Ada from the FCMB Pensions team. How can we help today?`}];
+  return `<div class="page notab" style="padding-bottom:150px;gap:14px" id="chatPage">
+  <div class="phead"><button class="iconbtn" type="button" data-back aria-label="Back">${I('chevL',22)}</button></div>
+  <div style="display:flex;align-items:center;gap:12px"><div aria-hidden="true" style="width:44px;height:44px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700">A</div><div class="rtext"><span style="font-weight:700;font-size:17px">Ada · FCMB Pensions</span><span class="small" style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:#3de896"></span>Online now</span></div></div>
+  <div class="chatlog" id="chatlog" aria-live="polite">${S.chat.map(m=>`<div class="msg ${m.me?'me':'them'}">${esc(m.t)}</div>`).join('')}</div>
+</div>
+<div class="composer">
+  <div class="quick">${['Check my balance','Get my statement','Update my details','Talk to my officer'].map(q=>`<button class="pill" type="button" data-act="quick" data-v="${q}">${q}</button>`).join('')}</div>
+  <form id="chatForm"><label for="chatIn" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Message</label><input class="input" id="chatIn" placeholder="Type a message" autocomplete="off"><button class="sendbtn" type="submit" aria-label="Send">${I('send',20)}</button></form>
+</div>`;
+};
+
+R.help = () => `<div class="page">
+  <h1 class="h1" style="font-size:36px">How can we help?</h1>
+  <label class="field" style="gap:0"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search help</span>
+    <span style="position:relative;display:block"><span style="position:absolute;left:16px;top:16px;color:var(--muted)">${I('search')}</span><input class="input" id="helpQ" type="search" placeholder="Search questions and answers" style="padding-left:46px"></span></label>
+  <div id="helpResults" hidden></div>
+  <div id="helpMain" class="stack" style="gap:22px">
+    ${group([row('q','FAQs','Quick answers on contributions, benefits and more','data-go="faqs"'), row('pin','Find an office','Visit us at a location near you','data-go="offices"'), row('info','About us','Who we are and how we look after your pension','data-go="about"')])}
+    <section class="card pad stack" style="gap:12px">
+      <span class="bar"></span>
+      <h2 class="h2">Still need a hand?</h2>
+      <p class="small" style="margin:0;font-size:14px">Our team is here to help you move forward. Chat with us and we’ll pick it up from there.</p>
+      <button class="btn sm" type="button" data-go="chat" style="align-self:flex-start">${I('chat',18)}Start a live chat</button>
+    </section>
+  </div>
+</div>`;
+
+const faqList = (items) => `<div class="group">${items.map(([q,a])=>`<details class="faq"><summary>${esc(q)}${I('chevR',18)}</summary><p>${esc(a)}</p></details>`).join('')}</div>`;
+R.faqs = () => `<div class="page">${head('FAQs')}${faqList(FAQS)}</div>`;
+
+R.offices = () => `<div class="page">
+  ${head('Find an office','Walk in, or call ahead and we’ll be ready for you.')}
+  ${['Lagos','Abuja','Port Harcourt','Ibadan','Kano'].map(c=>`<div class="card pad" style="display:flex;align-items:center;gap:14px"><span class="chip">${I('pin')}</span><span class="rtext"><span class="rt">${c}</span><span class="rs">FCMB Pensions office</span></span><a class="btn ghost sm" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('FCMB Pensions '+c)}" target="_blank" rel="noopener">Directions</a></div>`).join('')}
+</div>`;
+
+R.about = () => `<div class="page">
+  ${head('About us')}
+  <section class="balance" style="min-height:160px"><img class="flowbg" src="flow_card.jpg" alt=""><div class="in" style="padding:24px"><span class="bar dark"></span><p style="margin:0;font-family:var(--serif);font-size:28px;line-height:1.15">Progress is personal. Your pension should be too.</p></div></section>
+  <p class="sub" style="color:var(--obsidian)">FCMB Pensions is part of FCMB Group. We look after the retirement savings of people across Nigeria, investing every contribution with care so it can grow toward the future you are planning.</p>
+  <p class="sub">We believe progress is a steady rhythm, not a race. That is why we keep things clear, stay close when you need us, and show you exactly how your money is moving.</p>
+  ${group([row('q','Read our FAQs','','data-go="faqs"'), row('chat','Talk to us','','data-go="chat"')])}
+</div>`;
+
+R.referrals = () => `<div class="page">
+  ${head('Referrals','Invite the people you care about to start saving with us.')}
+  <section class="balance"><img class="flowbg" src="flow_card.jpg" alt=""><div class="in">
+    <span class="small" style="color:var(--obsidian)">Your referral code</span>
+    <p class="bigamt" style="font-size:36px">${esc((S.user.first.slice(0,4)||'FCMB').toUpperCase())}-4821</p>
+    <span class="bar dark"></span><span style="font-size:13px">2 people have joined with your code</span>
+  </div></section>
+  <div class="stack">
+    <button class="btn" type="button" data-act="share">${I('share',18)}Share invite</button>
+    <button class="btn ghost" type="button" data-act="copy" data-text="${esc((S.user.first.slice(0,4)||'FCMB').toUpperCase())}-4821">${I('copy',18)}Copy code</button>
+  </div>
+</div>`;
+
+/* ================= router ================= */
+let stack = [];
+const view = $('#view'), tabbar = $('#tabbar');
+let launchTimer = null;
+
+function render(dir){
+  const top = stack[stack.length-1];
+  view.innerHTML = R[top.id](top.p || {});
+  const page = view.firstElementChild;
+  if(page && dir !== 'none') page.classList.add(dir === 'push' ? 'anim-push' : dir === 'back' ? 'anim-back' : 'anim-fade');
+  const authed = !AUTH.includes(top.id);
+  const hideTab = !authed || ['chat','email'].includes(top.id);
+  tabbar.hidden = hideTab;
+  const root = stack[0].id;
+  tabbar.querySelectorAll('.tab').forEach(t => { if(t.dataset.tab === root) t.setAttribute('aria-current','page'); else t.removeAttribute('aria-current'); });
+  after[top.id] && after[top.id]();
+}
+function go(id, p){ stack.push({id, p}); render('push'); }
+function back(){ if(stack.length > 1){ stack.pop(); render('back'); } }
+function tab(id){ stack = [{id}]; render('fade'); }
+function reset(id){ stack = [{id}]; render('fade'); }
+
+/* ================= overlays ================= */
+let toastT;
+function toast(msg){
+  const t = $('#toast'); t.innerHTML = I('checkc') + '<span>' + esc(msg) + '</span>';
+  t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('on'), 2400);
+}
+function openSheet(html){
+  const sh = $('#sheet'), sc = $('#scrim');
+  sh.innerHTML = '<span class="grab" aria-hidden="true"></span>' + html; sh.hidden = false; sc.hidden = false;
+  requestAnimationFrame(()=>{ sh.classList.add('on'); sc.classList.add('on'); });
+  const f = sh.querySelector('button,input'); f && setTimeout(()=>f.focus({preventScroll:true}), 280);
+}
+function closeSheet(){
+  const sh = $('#sheet'), sc = $('#scrim');
+  sh.classList.remove('on'); sc.classList.remove('on');
+  setTimeout(()=>{ sh.hidden = true; sc.hidden = true; sh.innerHTML=''; }, 280);
+}
+function copy(text){
+  const done = () => toast('Copied ' + text);
+  try { navigator.clipboard.writeText(text).then(done, done); } catch(e){ done(); }
+}
+
+/* ================= per-screen wiring ================= */
+const after = {};
+after.launch = () => { clearTimeout(launchTimer); launchTimer = setTimeout(()=> reset('welcome'), 1800); };
+after.otp = () => {
+  const ins = [...document.querySelectorAll('#otp input')];
+  ins[0].focus({preventScroll:true});
+  ins.forEach((inp, i) => {
+    inp.addEventListener('input', () => { inp.value = inp.value.replace(/\D/g,'').slice(-1); if(inp.value && ins[i+1]) ins[i+1].focus(); if(ins.every(x=>x.value)) verifyOtp(); });
+    inp.addEventListener('keydown', e => { if(e.key==='Backspace' && !inp.value && ins[i-1]) ins[i-1].focus(); });
+    inp.addEventListener('paste', e => { const d = (e.clipboardData.getData('text')||'').replace(/\D/g,'').slice(0,6); if(d.length){ e.preventDefault(); ins.forEach((x,j)=>x.value=d[j]||''); if(d.length===6) verifyOtp(); } });
+  });
+  let s = 30; const el = $('#resend');
+  const tick = setInterval(()=>{ if(!document.body.contains(el)) return clearInterval(tick); s--; if(s<=0){ clearInterval(tick); el.innerHTML = 'Didn’t get it? <button class="link" type="button" data-act="resend" style="padding:0">Send a new code</button>'; } else el.textContent = 'You can request a new code in 0:' + String(s).padStart(2,'0'); }, 1000);
+};
+after.calculator = () => {
+  document.querySelectorAll('[data-calc]').forEach(inp => inp.addEventListener('input', () => {
+    const k = inp.dataset.calc; S.calc[k] = +inp.value;
+    if(k==='age' && S.calc.ret <= S.calc.age){ S.calc.ret = S.calc.age + 1; $('#c_ret').value = S.calc.ret; $('#o_ret').textContent = S.calc.ret; }
+    if(k==='ret' && S.calc.ret <= S.calc.age){ S.calc.ret = S.calc.age + 1; inp.value = S.calc.ret; }
+    $('#o_'+k).textContent = k==='monthly' ? naira(S.calc[k],0) : k==='rate' ? S.calc[k] + '%' : S.calc[k];
+    const p = project(S.calc);
+    $('#r_pot').textContent = naira(p.pot,0);
+    $('#r_inc').textContent = 'About ' + naira(p.monthlyIncome,0) + ' a month if drawn over 20 years';
+    $('#r_pot').previousElementSibling.textContent = 'Estimated pot at ' + S.calc.ret;
+    $('#r_chart').innerHTML = calcChart(p.pts);
+  }));
+};
+after.chat = () => { const p = $('#chatPage'); p.scrollTop = p.scrollHeight; };
+after.help = () => {
+  const q = $('#helpQ');
+  q.addEventListener('input', () => {
+    const v = q.value.trim().toLowerCase(), res = $('#helpResults'), main = $('#helpMain');
+    if(!v){ res.hidden = true; main.hidden = false; return; }
+    const hits = FAQS.filter(([a,b]) => (a+' '+b).toLowerCase().includes(v));
+    res.innerHTML = hits.length ? `<div class="stack"><h2 class="label">${hits.length} answer${hits.length>1?'s':''}</h2>${faqList(hits)}</div>` : `<div class="card empty"><h2 class="h2" style="font-size:20px">No answers for “${esc(q.value)}”</h2><p class="small" style="margin:0">Try another word, or ask us directly.</p><button class="btn sm" type="button" data-go="chat">Start a live chat</button></div>`;
+    res.hidden = false; main.hidden = true;
+    const d = res.querySelector('details'); d && hits.length===1 && (d.open = true);
+  });
+};
+
+function botReply(text){
+  const log = $('#chatlog'); if(!log) return;
+  const ty = document.createElement('div'); ty.className = 'msg them typing'; ty.innerHTML = '<i></i><i></i><i></i>'; ty.setAttribute('aria-label','Ada is typing');
+  log.appendChild(ty); const p = $('#chatPage'); p.scrollTop = p.scrollHeight;
+  setTimeout(()=>{
+    const hit = BOT.find(([re]) => re.test(text));
+    const reply = hit ? hit[1]() : 'Thanks for your message. I’m passing this to the right team, and we’ll get back to you here shortly.';
+    S.chat.push({me:false, t:reply});
+    ty.remove(); const m = document.createElement('div'); m.className = 'msg them'; m.textContent = reply; log.appendChild(m);
+    if(p) p.scrollTop = p.scrollHeight;
+  }, 1000);
+}
+function sendChat(text){
+  text = text.trim(); if(!text) return;
+  S.chat.push({me:true, t:text});
+  const log = $('#chatlog'); const m = document.createElement('div'); m.className = 'msg me'; m.textContent = text; log.appendChild(m);
+  const p = $('#chatPage'); p.scrollTop = p.scrollHeight;
+  botReply(text);
+}
+
+function verifyOtp(){
+  const code = [...document.querySelectorAll('#otp input')].map(x=>x.value).join('');
+  const err = $('#otpErr');
+  // Demo: any code is accepted.
+  err.hidden = true;
+  const r = S.reg; S.user = Object.assign({}, S.user, r, {pin:'PEN1007' + String(Math.floor(10000000 + Math.random()*89999999))});
+  S.everLoggedIn = true; S.chat = null;
+  reset('success');
+}
+
+function faceId(){
+  if(!S.everLoggedIn){ toast('Log in with your access code first. Face ID turns on after that.'); return; }
+  if(!S.bio){ toast('Biometric login is off. Turn it on in Settings.'); return; }
+  openSheet(`<div class="stack" style="align-items:center;text-align:center;gap:16px;padding:12px 0 8px"><span class="scan" id="scanIc">${I('face',48)}</span><h2 class="h2" id="scanT">Looking for your face</h2><p class="small" style="margin:0">Hold your phone at eye level.</p></div>`);
+  setTimeout(()=>{ const ic = $('#scanIc'), t = $('#scanT'); if(!ic) return; ic.style.animation='none'; ic.style.background='var(--jade-t)'; ic.style.color='var(--obsidian)'; ic.innerHTML = I('check',48); t.textContent = 'Welcome back, ' + S.user.first; }, 1300);
+  setTimeout(()=>{ closeSheet(); reset('home'); }, 2100);
+}
+
+/* ================= events ================= */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-go],[data-back],[data-tab],[data-act]');
+  if(!t || !t.closest('#screen')) return;
+  if(t.hasAttribute('data-back')) return back();
+  if(t.dataset.tab) return tab(t.dataset.tab);
+  if(t.dataset.go){ if(!$('#sheet').hidden) closeSheet(); return go(t.dataset.go); }
+  const a = t.dataset.act, v = t.dataset.v;
+  switch(a){
+    case 'faceid': return faceId();
+    case 'peek': { const inp = document.getElementById(t.dataset.for); const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; t.innerHTML = I(show?'eyeoff':'eye'); t.setAttribute('aria-label', (show?'Hide':'Show')+' access code'); return; }
+    case 'reqcode': {
+      const ph = $('#lgPhone').value.trim();
+      return openSheet(`<h2 class="h2">Send an access code?</h2><p class="small" style="margin:0;font-size:14px">We’ll text a 6-digit code to <strong style="color:var(--obsidian)">${esc(maskPhone(ph || S.user.phone))}</strong>. It expires in 10 minutes.</p><button class="btn" type="button" data-act="sendcode">Send code</button><button class="btn ghost" type="button" data-act="closesheet">Cancel</button>`);
+    }
+    case 'sendcode': {
+      closeSheet(); toast('Access code sent to ' + maskPhone($('#lgPhone').value || S.user.phone));
+      setTimeout(()=>{ const c = $('#lgCode'); if(c){ c.value = DEMO_CODE; c.classList.remove('err'); $('#lgErr').hidden = true; toast('Code filled in from your SMS'); } }, 1600);
+      return;
+    }
+    case 'closesheet': return closeSheet();
+    case 'fillreg': {
+      const vals = {rgFirst:'Amaka', rgMiddle:'Grace', rgLast:'Obi', rgPhone:'0812 345 6789', rgEmail:'amaka.obi@example.com', rgEmployer:'Bright Star Foods Ltd', rgRef:''};
+      Object.entries(vals).forEach(([k,val]) => { const el = document.getElementById(k); el.value = val; el.classList.remove('err'); });
+      $('#rgErr').hidden = true; return;
+    }
+    case 'fillotp': { [...document.querySelectorAll('#otp input')].forEach((x,i)=>x.value = DEMO_CODE[i]); return verifyOtp(); }
+    case 'verifyotp': return verifyOtp();
+    case 'resend': toast('New code sent to ' + maskPhone(S.reg?.phone || S.user.phone)); return;
+    case 'enter': return reset('home');
+    case 'copy': return copy(t.dataset.text);
+    case 'hidebal': S.hideBal = !S.hideBal; return render('none');
+    case 'hidebal2': S.hideBal = !S.hideBal; t.setAttribute('aria-checked', S.hideBal); toast(S.hideBal ? 'Balance hidden on Home' : 'Balance shown on Home'); return;
+    case 'bio': S.bio = !S.bio; t.setAttribute('aria-checked', S.bio); toast(S.bio ? 'Biometric login is on' : 'Biometric login is off'); return;
+    case 'tx': {
+      const x = TX[+t.dataset.i];
+      return openSheet(`<div style="display:flex;align-items:center;gap:12px"><span class="chip jade">${I('in')}</span><div class="rtext"><span class="rt">${x.title}</span><span class="rs">${fdate(x.date)}</span></div></div>
+        <p class="bigamt" style="font-size:36px">+${naira(x.amt)}</p>
+        <div><div class="kv"><span>From</span><span>${x.type==='Voluntary'?'You, by transfer':esc(S.user.employer)}</span></div><div class="kv"><span>Units bought</span><span>${(x.amt/PRICE).toFixed(2)}</span></div><div class="kv"><span>Fund</span><span>Fund II</span></div><div class="kv"><span>Reference</span><span>CTR-${x.date.getFullYear()}${String(x.date.getMonth()+1).padStart(2,'0')}-${x.type.slice(0,2).toUpperCase()}</span></div><div class="kv"><span>Status</span><span>Credited</span></div></div>
+        <button class="btn ghost" type="button" data-act="closesheet">Done</button>`);
+    }
+    case 'readall': NOTES.forEach(n=>n.unread=false); S.unread = 0; toast('All notifications marked as read'); return render('none');
+    case 'note': {
+      const n = NOTES[+t.dataset.i]; if(n.unread){ n.unread = false; S.unread = Math.max(0, S.unread-1); }
+      const target = {in:'contributions', chart:'performance', doc:'statement', id:'biodata'}[n.icon];
+      return go(target);
+    }
+    case 'filter': S.filter = v; return render('none');
+    case 'period': S.period = v; return render('none');
+    case 'fund': S.fund = v; return render('none');
+    case 'perf': S.perf = v; return render('none');
+    case 'genstmt': {
+      const btn = t; const old = btn.innerHTML; btn.innerHTML = '<span class="spinner" style="border-color:rgba(46,11,86,.2);border-top-color:currentColor"></span>Preparing'; btn.disabled = true;
+      setTimeout(()=>{ btn.innerHTML = old; btn.disabled = false; toast(t.dataset.mode==='email' ? 'Statement sent to ' + S.user.email : 'Statement saved to your phone'); }, 1100);
+      return;
+    }
+    case 'benefitinfo': {
+      const k = t.dataset.k;
+      const body = k==='25' ? 'If you leave a job and have not found new work after four months, you may be able to withdraw up to 25% of your RSA balance. You will need a disengagement letter from your employer.' : 'You may be able to use up to 25% of your RSA balance as equity towards a residential mortgage. We will check the property and mortgage documents with you first.';
+      return openSheet(`<h2 class="h2">${k==='25'?'25% withdrawal':'Equity for a home'}</h2><p class="small" style="margin:0;font-size:14px">${body}</p><button class="btn" type="button" data-go="officer">Talk to my account officer</button><button class="btn ghost" type="button" data-act="closesheet">Not now</button>`);
+    }
+    case 'editbio': S.editBio = true; return render('none');
+    case 'canceledit': S.editBio = false; return render('none');
+    case 'social': return toast('Opening FCMB Pensions on ' + v);
+    case 'quick': return sendChat(v);
+    case 'share': return openSheet(`<h2 class="h2">Share your invite</h2><div class="card pad" style="background:var(--surface);font-size:14px;line-height:1.55">I save for retirement with FCMB Pensions and can see everything in their app. Join with my code ${esc((S.user.first.slice(0,4)||'FCMB').toUpperCase())}-4821.</div><button class="btn" type="button" data-act="copyinvite">${I('copy',18)}Copy message</button><button class="btn ghost" type="button" data-act="closesheet">Close</button>`);
+    case 'copyinvite': closeSheet(); return copy('invite message');
+    case 'logout': return openSheet(`<h2 class="h2">Log out?</h2><p class="small" style="margin:0;font-size:14px">${S.bio?'You can log back in with Face ID.':'You’ll need an access code to log back in.'}</p><button class="btn" type="button" data-act="dologout">Log out</button><button class="btn ghost" type="button" data-act="closesheet">Stay logged in</button>`);
+    case 'dologout': closeSheet(); S.chat = null; toast('You’ve logged out'); return reset('welcome');
+    case 'toast': return toast(t.dataset.msg);
+  }
+});
+$('#scrim').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#sheet').hidden) closeSheet(); });
+
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  const f = e.target;
+  if(f.id === 'loginForm'){
+    const pin = $('#lgPin'), ph = $('#lgPhone');
+    $('#lgErr').hidden = true;
+    const b = $('#lgBtn'); b.disabled = true; b.innerHTML = '<span class="spinner"></span>Signing in';
+    if(pin.value.trim()) S.user.pin = pin.value.trim().toUpperCase();
+    if(ph.value.trim()) S.user.phone = ph.value.trim();
+    setTimeout(()=>{ S.everLoggedIn = true; reset('home'); toast('Welcome back, ' + S.user.first); }, 900);
+  }
+  if(f.id === 'regForm'){
+    const g = id => document.getElementById(id).value.trim();
+    S.reg = {first:g('rgFirst') || 'Amaka', middle:g('rgMiddle'), last:g('rgLast') || 'Obi', phone:g('rgPhone') || '0812 345 6789', email:g('rgEmail') || 'amaka.obi@example.com', employer:g('rgEmployer') || 'Bright Star Foods Ltd'};
+    go('otp');
+  }
+  if(f.id === 'bioForm'){
+    ['phone','email','address','kin'].forEach(k => S.user[k] = document.getElementById('bd_'+k).value.trim() || S.user[k]);
+    S.editBio = false; render('none'); toast('Your details are updated');
+  }
+  if(f.id === 'mailForm'){
+    const b = $('#mlBody');
+    if(b.value.trim().length < 5){ const er = $('#mlErr'); er.textContent = 'Add a short message so we know how to help.'; er.hidden = false; b.classList.add('err'); return; }
+    back(); toast('Message sent. We’ll reply to ' + S.user.email);
+  }
+  if(f.id === 'chatForm'){ const i = $('#chatIn'); sendChat(i.value); i.value = ''; }
+});
+
+/* ================= sizing + boot ================= */
+function fit(){
+  const wrap = $('#deviceWrap');
+  if(window.innerWidth <= 520){ wrap.style.removeProperty('--s'); return; }
+  const s = Math.min(1, (window.innerHeight - 48) / 864, (window.innerWidth - 32) / 410);
+  wrap.style.setProperty('--s', s.toFixed(4));
+}
+window.addEventListener('resize', fit); fit();
+
+function start(){ S = freshState(); NOTES.forEach((n,i)=>n.unread = i<2); stack = [{id:'launch'}]; render('fade'); }
+$('#restart').addEventListener('click', start);
+start();
+})();
+</script>
+
+</body>
+</html>
